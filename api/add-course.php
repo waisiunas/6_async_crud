@@ -1,5 +1,5 @@
 <?php
-require_once './database/connection.php';
+require_once '../database/connection.php';
 
 $_POST = json_decode(file_get_contents("php://input"), true);
 

@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Courses</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
-
 </head>
 
 <body>
@@ -22,7 +21,7 @@
                                 <h4>Courses</h4>
                             </div>
                             <div class="col-6 text-end">
-                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModal" onclick="clearAddModal()">
                                     Add Course
                                 </button>
                             </div>
@@ -82,6 +81,8 @@
 
         const addFormElement = document.querySelector("#add-form");
         const alertAddElement = document.querySelector("#alert-add");
+        const editFormElement = document.querySelector("#edit-form");
+        const alertEditElement = document.querySelector("#alert-edit");
 
         addFormElement.addEventListener("submit", function(e) {
             e.preventDefault();
@@ -109,7 +110,7 @@
                 };
 
 
-                fetch("./add-course.php", {
+                fetch("./api/add-course.php", {
                         method: "POST",
                         body: JSON.stringify(data),
                         headers: {
@@ -143,7 +144,7 @@
         function showCourses() {
             const coursesSectionElement = document.querySelector("#courses-section");
 
-            fetch("./show-courses.php")
+            fetch("./api/show-courses.php")
                 .then(function(response) {
                     return response.json();
                 })
@@ -151,17 +152,17 @@
                     if (result.length !== 0) {
                         let rows = "";
                         let sr = 1;
-                        result.forEach(function (value) {
+                        result.forEach(function(value) {
                             rows += `<tr>
                                         <td>${sr++}</td>
                                         <td>${value.name}</td>
                                         <td>${value.duration}</td>
                                         <td>${value.created_at}</td>
                                         <td>
-                                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editModal">
+                                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editModal" onclick="editCourse(${value.id})">
                                                 Edit
                                             </button>
-                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="deleteCourse(${value.id})">
                                                 Delete
                                             </button>
                                         </td>
@@ -192,11 +193,156 @@
                 });
         }
 
+        let outterId = 0;
+
+        function editCourse(id) {
+            outterId = id;
+            clearEditModal();
+            const nameEditElement = document.querySelector("#name-edit");
+            const durationEditElement = document.querySelector("#duration-edit");
+
+            const data = {
+                id: id,
+                submit: 1
+            };
+
+            fetch("./api/fetch-course.php", {
+                    method: "POST",
+                    body: JSON.stringify(data),
+                    headers: {
+                        'Content-Type': 'application.json'
+                    }
+                })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(result) {
+                    if (result.emptyId) {
+                        alertEditElement.innerHTML = alert("danger", "Something went wrong!");
+                    } else {
+                        nameEditElement.value = result.name;
+                        durationEditElement.value = result.duration;
+                    }
+                })
+        }
+
+        editFormElement.addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            const nameEditElement = document.querySelector("#name-edit");
+            const durationEditElement = document.querySelector("#duration-edit");
+
+            let nameEditValue = nameEditElement.value;
+            let durationEditValue = durationEditElement.value;
+
+            nameEditElement.classList.remove("is-invalid");
+            durationEditElement.classList.remove("is-invalid");
+
+            if (nameEditValue == "") {
+                alertEditElement.innerHTML = alert("danger", "Enter course name");
+                nameEditElement.classList.add("is-invalid");
+            } else if (durationEditValue == "") {
+                alertEditElement.innerHTML = alert("danger", "Enter course duration");
+                durationEditElement.classList.add("is-invalid");
+            } else {
+                const data = {
+                    name: nameEditValue,
+                    duration: durationEditValue,
+                    id: outterId,
+                    submit: 1,
+                };
+
+                fetch("./api/edit-course.php", {
+                        method: "POST",
+                        body: JSON.stringify(data),
+                        headers: {
+                            'Content-Type': 'application.json'
+                        }
+                    })
+                    .then(function(response) {
+                        return response.json();
+                    })
+                    .then(function(result) {
+                        if (result.nameError) {
+                            alertEditElement.innerHTML = alert("danger", result.nameError);
+                            nameEditElement.classList.add("is-invalid");
+                        } else if (result.durationError) {
+                            alertEditElement.innerHTML = alert("danger", result.durationError);
+                            durationEditElement.classList.add("is-invalid");
+                        } else if (result.failure) {
+                            alertEditElement.innerHTML = alert("danger", result.failure);
+                        } else if (result.success) {
+                            alertEditElement.innerHTML = alert("success", result.success);
+                            showCourses();
+                        } else {
+                            alertAddElement.innerHTML = alert("danger", "Something went wrong");
+                        }
+                    })
+            }
+        });
+
         function alert(cls = "danger", msg) {
             return `<div class="alert alert-${cls} alert-dismissible fade show" role="alert">
             ${msg}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>`;
+        }
+
+        function clearAddModal() {
+            alertAddElement.innerHTML = "";
+            document.querySelector("#name-add").classList.remove("is-invalid");
+            document.querySelector("#duration-add").classList.remove("is-invalid");
+        }
+
+        function clearEditModal() {
+            alertEditElement.innerHTML = "";
+            document.querySelector("#name-edit").classList.remove("is-invalid");
+            document.querySelector("#duration-edit").classList.remove("is-invalid");
+        }
+
+        function deleteCourse(id) {
+            const deleteFormElement = document.querySelector("#delete-form");
+            const alertElement = document.querySelector("#alert");
+
+            deleteFormElement.addEventListener("submit", function(e) {
+                e.preventDefault();
+
+                const data = {
+                    id: id,
+                    submit: 1
+                };
+
+                fetch("./api/delete-course.php", {
+                        method: "POST",
+                        body: JSON.stringify(data),
+                        headers: {
+                            'Content-Type': 'application.json'
+                        }
+                    })
+                    .then(function(response) {
+                        return response.json();
+                    })
+                    .then(function(result) {
+                        if (result.success) {
+                            alertElement.innerHTML = alert("success", result.success);
+                        } else {
+                            alertElement.innerHTML = alert("danger", result.success);
+                        }
+                        showCourses();
+                        closeDeleteModal();
+                    })
+            });
+        }
+
+        function closeDeleteModal() {
+            const deleteModalElement = document.querySelector('#deleteModal');
+            deleteModalElement.style.display = 'none';
+            deleteModalElement.classList.remove('show');
+            document.body.classList.remove('modal-open');
+            const modalBackdrop = document.querySelector('.modal-backdrop');
+            if (modalBackdrop) {
+                modalBackdrop.parentNode.removeChild(modalBackdrop);
+            }
         }
     </script>
 
